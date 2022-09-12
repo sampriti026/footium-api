@@ -1,85 +1,93 @@
 import { BigInt } from "@graphprotocol/graph-ts"
 import {
   Contract,
-  Approval,
-  ApprovalForAll,
-  Paused,
-  RoleAdminChanged,
-  RoleGranted,
-  RoleRevoked,
-  Transfer,
-  Unpaused
+  RoleGranted as RoleGrantedEvent,
+  Transfer as TransferEvent,
 } from "../generated/Contract/Contract"
-import { ExampleEntity } from "../generated/schema"
 
-export function handleApproval(event: Approval): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
+import { Role, Transfer } from "../generated/schema";
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
+//import { log, ipfs, json, JSONValue } from "@graphprotocol/graph-ts";
+const ipfsHash = "Qmbs8JSa5hFxoktUcqzeVBqLsaKiSfDcdh3FMpi3NMgj5c";
 
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
-  }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
+export function handleRoleGranted(event: RoleGrantedEvent): void {
+  let id = event.transaction.hash.toHexString() // or however the ID is constructed
+    let role = Role.load(id)
+    if (role == null) {
+      role = new Role(id)
+    }
 
-  // Entity fields can be set based on event parameters
-  entity.owner = event.params.owner
-  entity.approved = event.params.approved
+    role.hash = event.params.role
+    role.to = event.params.sender
+    role.save()
 
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.DEFAULT_ADMIN_ROLE(...)
-  // - contract.MINTER_ROLE(...)
-  // - contract.PAUSER_ROLE(...)
-  // - contract.SET_BASE_URI_ROLE(...)
-  // - contract.balanceOf(...)
-  // - contract.getApproved(...)
-  // - contract.getRoleAdmin(...)
-  // - contract.getRoleMember(...)
-  // - contract.getRoleMemberCount(...)
-  // - contract.hasRole(...)
-  // - contract.isApprovedForAll(...)
-  // - contract.name(...)
-  // - contract.ownerOf(...)
-  // - contract.paused(...)
-  // - contract.supportsInterface(...)
-  // - contract.symbol(...)
-  // - contract.tokenURI(...)
 }
 
-export function handleApprovalForAll(event: ApprovalForAll): void {}
 
-export function handlePaused(event: Paused): void {}
+export function handleTransfer(event: TransferEvent): void {
+    // Create a Transfer entity, using the transaction hash as the entity ID
 
-export function handleRoleAdminChanged(event: RoleAdminChanged): void {}
+    let id = event.transaction.hash.toHexString() // or however the ID is constructed
+    let transfer = Transfer.load(id)
+    if (transfer == null) {
+      transfer = new Transfer(id)
+    }
+    // Set properties on the entity, using the event parameters
+    transfer.from = event.params.from
+    transfer.to = event.params.to
+    transfer.tokenID = event.params.tokenId
+    let transferContract = Contract.bind(event.address);
+    
+    transfer.externalURI = transferContract.tokenURI(event.params.tokenId);
+    if ( transfer.externalURI) {
+    let uri = "/" + event.params.tokenId.toString() + ".svg";
 
-export function handleRoleGranted(event: RoleGranted): void {}
+    // Save  entity to thethe store
+    transfer.image = 'ipfs.io/ipfs/' + ipfsHash + uri
+    }
+    // if (metadata) {
+    //   const value = json.fromBytes(metadata).toObject();
+    //   if (value){
+    //     const name = value.get("name");
+    //     if (name) {
+    //       transfer.name = name.toString();
+    //     }
+    //     const image = value.get("image");
+    //     if (image) {
+    //       transfer.image = image.toString();
+    //     }
+    //   }
+    //   let attributes: JSONValue[];
+    //   let clubAttributes = value.get("attributes");
+    //   if (clubAttributes) {
+    //     attributes = clubAttributes.toArray();
 
-export function handleRoleRevoked(event: RoleRevoked): void {}
+    //     for (let i = 0; i < attributes.length; i++) {
+    //       let item = attributes[i].toObject();
+    //       let trait: string;
+    //       let traitName = item.get("trait_type");
+    //       if (traitName) {
+    //         trait = traitName.toString();
+    //         let value: string;
+    //         let traitValue = item.get("value");
+    //         if (traitValue) {
+    //           value = traitValue.toString();
+    //           if (trait == "League") {
+    //             transfer.league = value;
+    //           }
+    //           if (trait == "Division") {
+    //             transfer.division = value;
+    //           }
 
-export function handleTransfer(event: Transfer): void {}
+    //         }
+    //       }
+    //     }
+    //   }
+    //}
+          
 
-export function handleUnpaused(event: Unpaused): void {}
+    transfer.save()
+}
+
+
